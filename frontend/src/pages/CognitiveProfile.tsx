@@ -9,20 +9,25 @@ interface UserProfile {
   name?: string;
   email?: string;
   department?: string;
-  year?: string;
+  year?: string | number;
   learning_styles?: string[];
   subjects?: string[];
   college?: string;
   phone?: string;
   enrollment_number?: string;
   dob?: string;
+  cognitive_profile?: any;
   created_at?: string;
 }
 
 const CognitiveProfile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [cognitive, setCognitive] = useState<any>(null);
   const { toast } = useToast();
 
+  // --------------------------
+  // LOAD USER + COGNITIVE DATA
+  // --------------------------
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("token");
@@ -37,75 +42,177 @@ const CognitiveProfile = () => {
         if (!response.ok) throw new Error(data.error || "Failed to load profile");
 
         setProfile(data);
+        setCognitive(data.cognitive_profile || null);
       } catch (error: any) {
-        toast({ title: "Error Loading Profile", description: error.message, variant: "destructive" });
+        toast({
+          title: "Error Loading Profile",
+          description: error.message,
+          variant: "destructive"
+        });
       }
     };
 
     fetchProfile();
   }, [toast]);
 
+  // --------------------------
+  // GENERATE COGNITIVE PROFILE
+  // --------------------------
+  const generateProfile = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/cognitive/profile/analyze`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setProfile(data);
+      setCognitive(data.cognitive_profile);
+
+      toast({ title: "Cognitive Profile Updated Successfully" });
+    } catch (error: any) {
+      toast({
+        title: "Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // --------------------------
+  // METRIC CARDS
+  // --------------------------
   const metrics = [
-    { icon: Brain, title: "Cognitive Style", value: "Analytical-Creative Hybrid" },
-    { icon: Zap, title: "Processing Speed", value: "Above Average" },
-    { icon: Eye, title: "Pattern Recognition", value: "Exceptional" },
-    { icon: Shield, title: "Stress Resilience", value: "High" },
-    { icon: Lightbulb, title: "Problem Solving", value: "Advanced" },
-    { icon: Target, title: "Goal Orientation", value: "Strong" },
+    { icon: Brain, title: "Cognitive Style", value: cognitive?.cognitive_style },
+    { icon: Zap, title: "Processing Speed", value: cognitive?.processing_speed },
+    { icon: Eye, title: "Pattern Recognition", value: cognitive?.pattern_recognition },
+    { icon: Shield, title: "Stress Resilience", value: cognitive?.stress_resilience },
+    { icon: Lightbulb, title: "Problem Solving", value: cognitive?.problem_solving },
+    { icon: Target, title: "Goal Orientation", value: cognitive?.goal_orientation },
   ];
 
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4">
+
+        {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl md:text-5xl font-heading font-bold mb-2">
             {profile?.name ? `Welcome, ` : "Your"}{" "}
             <span className="text-gradient">{profile?.name ?? "Cognitive Explorer"}</span>
           </h1>
           <p className="text-muted-foreground">
-            {profile?.department ? `${profile.department} • Year ${profile.year || "N/A"}` : "Complete your profile in Settings."}
+            {profile?.department
+              ? `${profile.department} • Year ${profile.year || "N/A"}`
+              : "Complete your profile in Settings."}
           </p>
-          {profile?.email && <p className="text-sm text-muted-foreground mt-2">{profile.email}</p>}
+          {profile?.email && (
+            <p className="text-sm text-muted-foreground mt-2">{profile.email}</p>
+          )}
+
+          {/* ANALYZE BUTTON */}
+          <button
+            onClick={generateProfile}
+            className="mt-6 px-6 py-2 rounded-xl bg-primary text-white shadow-md hover:bg-primary/90 transition"
+          >
+            Generate Cognitive Profile
+          </button>
         </div>
 
-        {/* Profile quick cards */}
+        {/* Cognitive Metrics */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           {metrics.map((m, i) => (
             <Card key={i} className="glass-card p-6">
               <m.icon className="w-6 h-6 text-primary mb-3" />
               <h3 className="text-sm text-muted-foreground mb-1">{m.title}</h3>
-              <p className="text-lg font-semibold">{m.value}</p>
+              <p className="text-lg font-semibold">
+                {m.value ?? "Not Analyzed Yet"}
+              </p>
             </Card>
           ))}
         </div>
 
+        {/* Strengths & Improvements */}
+        {cognitive && (
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <Card className="glass-card p-6">
+              <h3 className="text-xl font-heading font-semibold mb-4">
+                Strengths
+              </h3>
+              <ul className="space-y-2">
+                {cognitive.strengths?.map((s: string, idx: number) => (
+                  <li key={idx} className="text-sm text-foreground">• {s}</li>
+                ))}
+              </ul>
+            </Card>
+
+            <Card className="glass-card p-6">
+              <h3 className="text-xl font-heading font-semibold mb-4">
+                Areas to Improve
+              </h3>
+              <ul className="space-y-2">
+                {cognitive.areas_to_improve?.map((s: string, idx: number) => (
+                  <li key={idx} className="text-sm text-foreground">• {s}</li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        )}
+
         {/* Learning Styles and Subjects */}
         <div className="grid md:grid-cols-2 gap-6">
           <Card className="glass-card p-6">
-            <h3 className="text-xl font-heading font-semibold mb-4">Learning Styles</h3>
-            {profile?.learning_styles && profile.learning_styles.length > 0 ? (
+            <h3 className="text-xl font-heading font-semibold mb-4">
+              Learning Styles
+            </h3>
+            {profile?.learning_styles?.length ? (
               <div className="flex flex-wrap gap-2">
                 {profile.learning_styles.map((ls, idx) => (
-                  <span key={idx} className="px-3 py-1 rounded-full bg-primary/20 text-primary text-sm">
+                  <span
+                    key={idx}
+                    className="px-3 py-1 rounded-full bg-primary/20 text-primary text-sm"
+                  >
                     {ls}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">No learning styles set. Complete in Settings.</p>
+              <p className="text-muted-foreground">
+                No learning styles set. Complete in Settings.
+              </p>
             )}
           </Card>
 
           <Card className="glass-card p-6">
-            <h3 className="text-xl font-heading font-semibold mb-4">Subjects of Interest</h3>
-            {profile?.subjects && profile.subjects.length > 0 ? (
+            <h3 className="text-xl font-heading font-semibold mb-4">
+              Subjects of Interest
+            </h3>
+            {profile?.subjects?.length ? (
               <ul className="space-y-2">
                 {profile.subjects.map((s, i) => (
                   <li key={i} className="text-sm text-foreground">• {s}</li>
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">No subjects set. Add them in Settings.</p>
+              <p className="text-muted-foreground">
+                No subjects set. Add them in Settings.
+              </p>
             )}
           </Card>
         </div>
@@ -119,7 +226,9 @@ const CognitiveProfile = () => {
 
           <Card className="glass-card p-4">
             <h4 className="text-sm text-muted-foreground">Enrollment</h4>
-            <p className="font-medium">{profile?.enrollment_number ?? "Not provided"}</p>
+            <p className="font-medium">
+              {profile?.enrollment_number ?? "Not provided"}
+            </p>
           </Card>
 
           <Card className="glass-card p-4">

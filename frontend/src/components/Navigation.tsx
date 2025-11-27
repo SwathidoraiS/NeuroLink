@@ -44,7 +44,6 @@ const Navigation = () => {
     { to: "/decision-lab", label: "Decision Lab" },
     { to: "/emotion-tracker", label: "Emotions" },
     { to: "/Courses" , label: "Courses"},
-    { to: "/insight-reports", label: "Insights" },
     { to: "/twin-settings", label: "Settings" },
 
   ];

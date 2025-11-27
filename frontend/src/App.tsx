@@ -25,7 +25,6 @@ import Dashboard from "./pages/Dashboard";
 import CognitiveProfile from "./pages/CognitiveProfile";
 import DecisionLab from "./pages/DecisionLab";
 import EmotionTracker from "./pages/EmotionTracker";
-import InsightReports from "./pages/InsightReports";
 import TwinSettings from "./pages/TwinSettings";
 import NotFound from "./pages/NotFound";
 
@@ -55,7 +54,6 @@ const AppContent = () => {
       "/cognitive-profile",
       "/decision-lab",
       "/emotion-tracker",
-      "/insight-reports",
       "/twin-settings",
       "/courses",             // ✅ NEW
     ];
@@ -120,14 +118,7 @@ const AppContent = () => {
           }
         />
 
-        <Route
-          path="/insight-reports"
-          element={
-            <ProtectedRoute>
-              <InsightReports />
-            </ProtectedRoute>
-          }
-        />
+    
 
         <Route
           path="/twin-settings"

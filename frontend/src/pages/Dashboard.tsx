@@ -18,36 +18,68 @@ interface EmotionSummary {
   average_intensity: number;
 }
 
+interface DashboardData {
+  real_time?: {
+    focus_avg: number;
+    stress_avg: number;
+    motivation_avg: number;
+    decision_confidence_avg: number;
+    dominant_emotion?: string;
+  };
+  cached_ai?: {
+    cognitive_performance_index: number;
+    emotional_stability_score: number;
+    motivation_score: number;
+  };
+}
+
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [emotionSummary, setEmotionSummary] = useState<EmotionSummary | null>(null);
+
+  // ⬇️ NEW STATES
+  const [focusLevel, setFocusLevel] = useState<number | null>(null);
+  const [cognitivePerformance, setCognitivePerformance] = useState<number | null>(null);
+
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // 🎯 Fetch profile + emotion data
+  // 🎯 Fetch profile + emotion + dashboard cognitive data
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchAll = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
       try {
-        const [profileRes, emotionRes] = await Promise.all([
+        const [profileRes, emotionRes, dashboardRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/user/profile`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`${API_BASE_URL}/api/emotions/summary`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
+          fetch(`${API_BASE_URL}/api/dashboard`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         const profileData = await profileRes.json();
         const emotionData = await emotionRes.json();
+        const dashboardData: DashboardData = await dashboardRes.json();
 
         if (!profileRes.ok) throw new Error(profileData.error || "Failed to load user");
         if (!emotionRes.ok) throw new Error(emotionData.error || "Failed to load emotions");
 
+        // Profile & emotion
         setUser(profileData);
         setEmotionSummary(emotionData);
+
+        // ⭐ NEW: Extract real-time focus & cached cognitive performance
+        setFocusLevel(dashboardData.real_time?.focus_avg ?? null);
+        setCognitivePerformance(
+          dashboardData.cached_ai?.cognitive_performance_index ?? null
+        );
+
       } catch (error: any) {
         toast({
           title: "Error Loading Dashboard",
@@ -57,7 +89,7 @@ const Dashboard = () => {
       }
     };
 
-    fetchProfile();
+    fetchAll();
   }, [toast]);
 
   // 🌤️ Define mood visuals
@@ -88,13 +120,19 @@ const Dashboard = () => {
 
         {/* 🧠 Quick Stats */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
+          
+          {/* 🧠 Cognitive Performance (dynamic) */}
           <Card className="glass-card border-white/10 p-6 text-center hover-scale">
             <Brain className="w-8 h-8 text-primary mx-auto mb-3" />
             <h3 className="text-lg font-semibold">Cognitive Performance</h3>
-            <p className="text-muted-foreground">82% Optimization</p>
+            <p className="text-muted-foreground">
+              {cognitivePerformance !== null
+                ? `${cognitivePerformance}% Optimization`
+                : "Loading..."}
+            </p>
           </Card>
 
-          {/* 🌤️ Dynamic Emotion Stability */}
+          {/* 🌤️ Emotion Stability */}
           <motion.div
             className="glass-card border-white/10 p-6 text-center hover-scale"
             animate={{ scale: [1, 1.02, 1], opacity: [0.9, 1, 0.9] }}
@@ -115,10 +153,13 @@ const Dashboard = () => {
             </p>
           </motion.div>
 
+          {/* 🎯 Focus Level (dynamic) */}
           <Card className="glass-card border-white/10 p-6 text-center hover-scale">
             <Activity className="w-8 h-8 text-accent mx-auto mb-3" />
             <h3 className="text-lg font-semibold">Focus Level</h3>
-            <p className="text-muted-foreground">High • 76%</p>
+            <p className="text-muted-foreground">
+              {focusLevel !== null ? `Active • ${focusLevel}%` : "Loading..."}
+            </p>
           </Card>
         </div>
 

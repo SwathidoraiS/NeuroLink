@@ -4,7 +4,15 @@ import { Button } from "@/components/ui/button";
 import { API_BASE_URL } from "../config";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { Smile, Frown, Meh, Heart, Brain, Cloud } from "lucide-react";
+import {
+  Smile,
+  Frown,
+  Meh,
+  Heart,
+  Brain,
+  Cloud,
+  Bot,
+} from "lucide-react";
 
 const emotionOptions = [
   { name: "Joy", color: "from-yellow-400 via-amber-500 to-orange-500", icon: Smile },
@@ -19,31 +27,40 @@ const EmotionTracker = () => {
   const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
   const [intensity, setIntensity] = useState(50);
   const [emotions, setEmotions] = useState<any[]>([]);
+  const [aiInsight, setAiInsight] = useState<any | null>(null);
+  const [insights, setInsights] = useState<any | null>(null);
   const { toast } = useToast();
 
-  // Dynamic background based on emotion
-  const currentGradient =
-    emotionOptions.find((e) => e.name === selectedEmotion)?.color ||
-    "from-primary/10 via-secondary/10 to-accent/10";
+  const token = localStorage.getItem("token");
 
-  // Fetch emotions history
+  // ======================================
+  // 1️⃣ Fetch Emotional + Cognitive Trends
+  // ======================================
+  const fetchInsights = () => {
+    fetch(`${API_BASE_URL}/api/emotions/insights`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setInsights(data))
+      .catch(() => {});
+  };
+
+  // ======================================
+  // 2️⃣ Fetch Emotion History
+  // ======================================
   useEffect(() => {
-    const token = localStorage.getItem("token");
     fetch(`${API_BASE_URL}/api/emotions`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setEmotions(data))
-      .catch(() =>
-        toast({
-          title: "Error",
-          description: "Failed to load emotion history.",
-          variant: "destructive",
-        })
-      );
+      .then((data) => setEmotions(data));
+
+    fetchInsights();
   }, []);
 
-  // Handle emotion submission
+  // ======================================
+  // 3️⃣ Handle Emotion Submission
+  // ======================================
   const handleSubmit = async () => {
     if (!selectedEmotion) {
       toast({
@@ -54,7 +71,6 @@ const EmotionTracker = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
     const response = await fetch(`${API_BASE_URL}/api/emotions`, {
       method: "POST",
       headers: {
@@ -71,13 +87,30 @@ const EmotionTracker = () => {
         title: `${selectedEmotion} logged!`,
         description: "Your emotional state has been recorded.",
       });
-      setEmotions([{ emotion: selectedEmotion, intensity, timestamp: new Date().toISOString() }, ...emotions]);
+
+      // Add new emotion to list
+      setEmotions([
+        { emotion: selectedEmotion, intensity, timestamp: new Date().toISOString(), ...data.ai },
+        ...emotions,
+      ]);
+
+      // Show AI interpretation
+      setAiInsight(data.ai);
+
+      // Refresh trends
+      fetchInsights();
+
       setSelectedEmotion(null);
       setIntensity(50);
     } else {
       toast({ title: "Error", description: data.error, variant: "destructive" });
     }
   };
+
+  // Gradient background based on emotion
+  const currentGradient =
+    emotionOptions.find((e) => e.name === selectedEmotion)?.color ||
+    "from-primary/10 via-secondary/10 to-accent/10";
 
   return (
     <motion.div
@@ -89,15 +122,15 @@ const EmotionTracker = () => {
         Emotional <span className="text-gradient">Pulse Tracker</span>
       </h1>
 
-      {/* Emotion Selection Grid */}
+      {/* ============================== */}
+      {/*        Emotion Selector        */}
+      {/* ============================== */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12 max-w-3xl w-full">
-        {emotionOptions.map((emotion, index) => (
+        {emotionOptions.map((emotion) => (
           <motion.div
             key={emotion.name}
             className={`cursor-pointer p-6 rounded-2xl text-center glass-card border-white/20 transition-all hover:scale-105 relative ${
-              selectedEmotion === emotion.name
-                ? "ring-2 ring-white shadow-lg scale-105"
-                : "opacity-90"
+              selectedEmotion === emotion.name ? "ring-2 ring-white shadow-lg scale-105" : "opacity-90"
             }`}
             onClick={() => setSelectedEmotion(emotion.name)}
             whileHover={{ scale: 1.05 }}
@@ -112,7 +145,9 @@ const EmotionTracker = () => {
         ))}
       </div>
 
-      {/* Intensity Slider */}
+      {/* ============================== */}
+      {/*       Intensity Controller     */}
+      {/* ============================== */}
       <Card className="p-6 glass-card border-white/10 mb-8 w-full max-w-md text-center">
         <h3 className="text-lg font-semibold mb-4">Emotion Intensity: {intensity}%</h3>
         <input
@@ -131,7 +166,68 @@ const EmotionTracker = () => {
         </Button>
       </Card>
 
-      {/* Emotion History */}
+      {/* ============================== */}
+      {/*       AI Insight (Chat UI)     */}
+      {/* ============================== */}
+      {aiInsight && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-2xl mb-8"
+        >
+          <Card className="p-6 glass-card border-white/10 bg-white/10">
+            <div className="flex gap-3 mb-3">
+              <Bot className="h-6 w-6 text-primary" />
+              <h2 className="font-semibold text-xl text-white">Twin Insight</h2>
+            </div>
+
+            <p className="text-sm text-gray-200 mb-3">{aiInsight.interpretation}</p>
+
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <Card className="p-3 text-center bg-black/20 border-white/10">
+                <p className="text-xs text-white/50">Focus</p>
+                <p className="text-xl font-bold text-primary">{aiInsight.focus_score}</p>
+              </Card>
+
+              <Card className="p-3 text-center bg-black/20 border-white/10">
+                <p className="text-xs text-white/50">Stress</p>
+                <p className="text-xl font-bold text-red-400">{aiInsight.stress_score}</p>
+              </Card>
+
+              <Card className="p-3 text-center bg-black/20 border-white/10">
+                <p className="text-xs text-white/50">Motivation</p>
+                <p className="text-xl font-bold text-green-400">{aiInsight.motivation_score}</p>
+              </Card>
+            </div>
+
+            <p className="mt-4 text-sm text-primary">{aiInsight.recommendation}</p>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ============================== */}
+      {/*       Trend Summary Cards      */}
+      {/* ============================== */}
+      {insights && (
+        <div className="w-full max-w-3xl grid md:grid-cols-3 gap-4 mt-6">
+          <Card className="p-4 bg-white/10 border-white/10 text-center">
+            <p className="text-sm text-gray-300">Dominant Emotion</p>
+            <p className="text-xl font-bold text-white">{insights.dominant_emotion}</p>
+          </Card>
+          <Card className="p-4 bg-white/10 border-white/10 text-center">
+            <p className="text-sm text-gray-300">Stability</p>
+            <p className="text-xl font-bold text-white">{insights.stability}</p>
+          </Card>
+          <Card className="p-4 bg-white/10 border-white/10 text-center">
+            <p className="text-sm text-gray-300">Avg Intensity</p>
+            <p className="text-xl font-bold text-white">{insights.average_intensity}</p>
+          </Card>
+        </div>
+      )}
+
+      {/* ============================== */}
+      {/*     Emotion History List       */}
+      {/* ============================== */}
       <AnimatePresence>
         {emotions.length > 0 && (
           <motion.div
